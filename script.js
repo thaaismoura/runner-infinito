@@ -68,29 +68,32 @@
   }
 
   // ====== ENTIDADES ======
-  const player = { x:80, y:GY-42, w:46, h:42, vy:0, gravity:.9, jump:14,
+  const player = { x:60, y:GY-42, w:46, h:42, vy:0, gravity:.9, jump:14,
     onGround:true, jumps:0, maxJumps:1, leg:0, wing:0, neck:0 };
-  const obs = [], clouds = [], eggs = [], parts = [];
+  const obs = [], clouds = [], eggs = [], parts = [], groundMarks = [];
 
   // ====== ESTADO ======
-  let tObs=0, tCloud=0, tEgg=0, spawnInt=90;
+  let tObs=0, tCloud=0, tEgg=0, tMark=0, spawnInt=100;
   let running=false, paused=false, gameOver=false;
-  let score=0, level=1, baseSpeed=4.2, speed=baseSpeed, frame=0, night=false;
+  let score=0,                  // pontos (ovos dão +5)
+      obstaclesCleared=0;       // **conta obstáculos passados** (para nível)
+  let level=1, baseSpeed=3.6, speed=baseSpeed, frame=0, night=false;
   let best = Number(localStorage.getItem("runner_highscore")||0); ELbest.textContent=`🏆 High: ${best}`;
 
   // ====== UTILS ======
   const R=(a,b)=>Math.random()*(b-a)+a, CL=(v,a,b)=>Math.max(a,Math.min(b,v));
   const hit=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+  const LERP=(a,b,t)=>a+(b-a)*t;
 
   // ====== RESET ======
   function reset(){
-    obs.length=clouds.length=eggs.length=parts.length=0;
-    tObs=tCloud=tEgg=0; spawnInt=90;
+    obs.length=clouds.length=eggs.length=parts.length=groundMarks.length=0;
+    tObs=tCloud=tEgg=tMark=0; spawnInt=100;
     running=true; paused=false; gameOver=false;
-    score=0; level=1; baseSpeed=4.2; speed=baseSpeed; frame=0; night=false;
-    player.y=GY-player.h; player.vy=0; player.onGround=true; player.jumps=0; player.maxJumps=1;
+    score=0; obstaclesCleared=0; level=1; baseSpeed=3.6; speed=baseSpeed; frame=0; night=false;
+    player.x=60; player.y=GY-player.h; player.vy=0; player.onGround=true; player.jumps=0; player.maxJumps=1;
     ELscore.textContent=`Score: ${score}`; ELlevel.textContent=`Nível: ${level} (Dia)`; BPause.textContent="Pausar (P)";
-    initAudio(); resumeMusic(); startMusic(); // música começa só agora
+    initAudio(); resumeMusic(); startMusic(); // música começa só ao iniciar
   }
 
   // ====== INPUT ======
@@ -117,15 +120,21 @@
   }
   function spCloud(){ const s=R(.6,1.2); clouds.push({x:W+30,y:R(30,120),s,spd:R(.4,.9)}); }
   function spEgg(){ eggs.push({x:W+20,y:GY-60,w:20,h:26,got:false}); }
+  function spGroundMark(){
+    // pequenas linhas no chão para reforçar a sensação de movimento
+    groundMarks.push({x:W+R(20,80), y:GY+R(6,14), w:R(10,24), h:2, alpha:.6});
+  }
 
   // ====== NÍVEIS / PROGRESSÃO ======
   function setLevel(){
-    const nl = Math.floor(score/10)+1;
+    const nl = Math.floor(obstaclesCleared / 5) + 1;   // **5 obstáculos por nível**
     if(nl!==level){
       level=nl; night = level%2===0;
-      baseSpeed = 4.2 + (level-1)*0.9; speed = baseSpeed;
-      spawnInt = Math.max(52, 90 - (level-1)*4);
+      baseSpeed = 3.6 + (level-1)*1.0;    // acelera mais por nível
+      speed = baseSpeed;                  // ressincroniza aceleração
+      spawnInt = Math.max(52, 100 - (level-1)*6);
       ELlevel.textContent=`Nível: ${level} (${night?"Noite":"Dia"})`;
+      // festa
       for(let i=0;i<40;i++) parts.push({x:R(0,W),y:R(0,H/2),vx:R(-1,1),vy:R(-1,1),life:R(30,60),c:night?"#fff":"#ffeb3b"});
     }
   }
@@ -136,15 +145,23 @@
     const gd=X.createLinearGradient(0,0,0,H); gd.addColorStop(0,"#87CEEB"); gd.addColorStop(1,"#fceabb");
     const gn=X.createLinearGradient(0,0,0,H); gn.addColorStop(0,"#20053d"); gn.addColorStop(1,"#301860");
     X.fillStyle=night?gn:gd; X.fillRect(0,0,W,H);
+
     if(night){
       X.fillStyle="#fff";
       for(let i=0;i<40;i++){ const x=(i*37+(frame%37)*3)%W, y=(i*11)%Math.max(80,H*.35); X.fillRect(x,y,1,1); }
       X.beginPath(); X.arc(W-80,60,16,0,Math.PI*2); X.fillStyle="#f5f3ce"; X.fill();
     }
+
     for(const c of clouds) drawCloud(c);
+
+    // chão
     X.fillStyle="#d7b46a"; X.fillRect(0,GY,W,H-GY);
-    X.strokeStyle=night?"#eee":"#111"; X.lineWidth=2;
-    X.beginPath(); X.moveTo(0,GY+.5); X.lineTo(W,GY+.5); X.stroke();
+
+    // marquinhas de chão (parallax)
+    X.globalAlpha=.85;
+    X.fillStyle=night?"#c4a96b":"#c09f62";
+    for(const m of groundMarks) X.fillRect(m.x, m.y, m.w, m.h);
+    X.globalAlpha=1;
   }
   function drawCloud(c){
     X.save(); X.translate(c.x,c.y); X.scale(c.s,c.s);
@@ -154,7 +171,7 @@
   }
   function drawOstrich(){
     const x=player.x,y=player.y,w=player.w,h=player.h;
-    player.leg+=player.onGround?speed*.18:.06; player.wing+=.3; player.neck+=.1;
+    player.leg+=player.onGround?speed*.20:.06; player.wing+=.3; player.neck+=.1;
     const wing=Math.sin(player.wing)*6, neck=Math.sin(player.neck)*2;
     X.save(); X.translate(x,y); X.fillStyle=night?"#eee":"#444";
     X.beginPath(); X.ellipse(w*.42,h*.55,w*.32,h*.28,0,0,Math.PI*2); X.fill();
@@ -208,7 +225,11 @@
     frame++;
     if(running && !paused && !gameOver){
       // aceleração suave
-      speed = CL(speed + .0025, baseSpeed, baseSpeed + 1.2);
+      speed = CL(speed + .003, baseSpeed, baseSpeed + 1.4);
+
+      // sensação de avanço: avestruz caminha até posição-alvo que cresce por nível
+      const targetX = CL(W * (0.26 + (level-1)*0.02), 60, W*0.45);
+      player.x = LERP(player.x, targetX, 0.025 + (level-1)*0.003);
 
       // física player
       player.vy += player.gravity; player.y += player.vy;
@@ -220,22 +241,25 @@
       }
 
       // pulo duplo contextual
-      const n = (function(){ let m=null; for(const o of obs){ if(o.x+o.w<player.x) continue; if(!m||o.x<m.x) m=o; } return m; })();
+      const n = nearObs();
       if(n){ const tall=(n.type==="cactus"&&n.h>=60)||(n.type==="barbed"&&n.h>=34); const d=n.x-(player.x+player.w); player.maxJumps=(tall&&d<Math.max(180,W*.25))?2:1; } else player.maxJumps=1;
 
       // spawns
       if(++tObs>=spawnInt){tObs=0;spObstacle();}
       if(++tCloud>=120){tCloud=0;if(Math.random()<.9) spCloud();}
       if(++tEgg>=Math.max(300,360-level*10)){tEgg=0;if(Math.random()<.85) spEgg();}
+      if(++tMark>=12){tMark=0; if(Math.random()<.7) spGroundMark();}
 
       // mover obstáculos
       for(let i=obs.length-1;i>=0;i--){
-        const o=obs[i]; o.x-=speed; if(o.type==="barbed") o.rot=(o.rot||0)+.08;
+        const o=obs[i]; o.x-=speed; if(o.type==="barbed") o.rot=(o.rot||0)+.09;
         if(hit(player,o)){
           running=false; gameOver=true; stopMusic();
           if(score>best){ best=score; localStorage.setItem("runner_highscore",best); ELbest.textContent=`🏆 High: ${best}`; }
         }
-        if(o.x+o.w<0){ obs.splice(i,1); score++; ELscore.textContent=`Score: ${score}`; setLevel(); }
+        if(o.x+o.w<0){ obs.splice(i,1);
+          score++; obstaclesCleared++; ELscore.textContent=`Score: ${score}`; setLevel();
+        }
       }
 
       // ovos
@@ -248,8 +272,9 @@
         if(e.x+e.w<0 || e.got) eggs.splice(i,1);
       }
 
-      // nuvens e partículas
+      // nuvens, marquinhas e partículas
       for(let i=clouds.length-1;i>=0;i--){ const c=clouds[i]; c.x-=c.spd; if(c.x<-120) clouds.splice(i,1); }
+      for(let i=groundMarks.length-1;i>=0;i--){ const m=groundMarks[i]; m.x -= speed*1.1; m.alpha -= 0.0015; if(m.x+m.w<0||m.alpha<=0) groundMarks.splice(i,1); }
       for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx; p.y+=p.vy; if(--p.life<=0) parts.splice(i,1); }
     }
 
@@ -264,59 +289,7 @@
     requestAnimationFrame(update);
   }
 
-  // ====== DRAW HELPERS (wrappers) ======
-  function drawEgg(e){ X.fillStyle="#fff176"; X.beginPath(); X.ellipse(e.x+e.w/2,e.y+e.h/2,10,13,0,0,Math.PI*2); X.fill(); }
-  function drawOstrich(){ drawOstr(); }
-  function drawParticles(){ for(const p of parts){ X.fillStyle=p.c; X.fillRect(p.x,p.y,2,2); } }
-  function drawOverlays(){ overlays(); }
-
-  // (corpo real do avestruz e overlays já definidos acima)
-  const drawOstr = (function(){
-    return function(){ // reutiliza a função já escrita (drawOstrich logic acima)
-      const x=player.x,y=player.y,w=player.w,h=player.h;
-      // valores animados já atualizados em update()
-      const wing=Math.sin(player.wing)*6, neck=Math.sin(player.neck)*2;
-      X.save(); X.translate(x,y); X.fillStyle=night?"#eee":"#444";
-      X.beginPath(); X.ellipse(w*.42,h*.55,w*.32,h*.28,0,0,Math.PI*2); X.fill();
-      X.save(); X.translate(w*.55+neck,h*.10); X.fillRect(0,0,w*.08,h*.40); X.restore();
-      X.beginPath(); X.arc(w*.63+neck,h*.10,w*.10,0,Math.PI*2); X.fill();
-      X.fillRect(w*.70+neck,h*.10-3,w*.16,6);
-      X.fillStyle=night?"#0c1230":"#fff"; X.fillRect(w*.61+neck,h*.06,3,3);
-      X.fillStyle=night?"#0c1230":"#111"; X.fillRect(w*.62+neck,h*.07,1.5,1.5);
-      X.fillStyle=night?"#eee":"#444"; X.save(); X.translate(w*.30,h*.40); X.rotate(wing*Math.PI/180);
-      X.beginPath(); X.ellipse(0,0,w*.30,h*.15,0,0,Math.PI*2); X.fill(); X.restore();
-      const a=Math.sin(player.leg)*6;
-      X.save(); X.translate(w*.38,h*.70); X.rotate(a*Math.PI/180); X.fillRect(-2,0,4,h*.30); X.restore();
-      X.save(); X.translate(w*.48,h*.70); X.rotate(-a*Math.PI/180); X.fillRect(-2,0,4,h*.30); X.restore();
-      X.restore();
-    }
-  })();
-
-  const overlays = (function(){
-    return function(){
-      if(paused&&running&&!gameOver){
-        X.fillStyle="rgba(0,0,0,.4)"; X.fillRect(0,0,W,H);
-        X.fillStyle="#fff"; X.font="bold 28px system-ui"; X.textAlign="center";
-        X.fillText("PAUSADO",W/2,H/2-8); X.font="16px system-ui";
-        X.fillText("Pressione P para retomar",W/2,H/2+24);
-      }
-      if(gameOver){
-        X.fillStyle="rgba(0,0,0,.6)"; X.fillRect(0,0,W,H);
-        X.fillStyle="#fff"; X.font="bold 28px system-ui"; X.textAlign="center";
-        X.fillText("Game Over",W/2,H/2-8); X.font="16px system-ui";
-        X.fillText("Espaço/Toque para Reiniciar",W/2,H/2+24);
-      }
-      if(!running&&!gameOver){
-        X.fillStyle=night?"#fff":"#111"; X.font="16px system-ui"; X.textAlign="left";
-        X.fillText("Pressione Espaço ou Clique para começar",16,28);
-      }
-    }
-  })();
-
   // ====== START ======
-  function initialDraw(){
-    // só para mostrar a tela inicial antes de iniciar
-    drawBG(); drawOverlays();
-  }
+  function initialDraw(){ drawBG(); drawOverlays(); }
   resize(); initialDraw(); requestAnimationFrame(update);
 })();
