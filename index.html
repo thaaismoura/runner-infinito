@@ -1,16 +1,18 @@
 <!doctype html>
 <html lang="pt-BR">
->
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Runner Infinito: Avestruz 8-bit</title>
   <link rel="stylesheet" href="style.css" />
+  <meta name="theme-color" content="#301860" />
 </head>
 <body>
   <main class="wrap">
     <h1>Runner Infinito: Avestruz 8-bit</h1>
-    <canvas id="game" width="800" height="300" aria-label="Runner Infinito"></canvas>
+    <div class="canvas-wrap">
+      <canvas id="game" width="800" height="300" aria-label="Runner Infinito"></canvas>
+    </div>
     <div class="hud">
       <div class="left">
         <span id="score">Score: 0</span>
@@ -20,16 +22,19 @@
       <div class="actions">
         <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
         <button id="btnPause" aria-pressed="false">Pausar (P)</button>
-        <button id="btnMute">🔊 Som</button>
+        <button id="btnMute" aria-pressed="false" title="Som">🔊 Som</button>
       </div>
     </div>
     <p class="hint">
-      Toque ou <strong>ESPAÇO</strong> para pular.  
-      O <strong>pulo duplo</strong> aparece quando o obstáculo é alto.  
-      Pressione <strong>P</strong> para pausar.  
-      Clique em 🔊 para mutar o som.
+      Toque ou <strong>ESPAÇO</strong> para pular. O <strong>pulo duplo</strong> aparece quando o obstáculo é alto.
+      Pressione <strong>P</strong> para pausar. Use 🔊 para mutar.
     </p>
   </main>
+
+  <footer class="site-footer">
+    <small>© 2025 Thaís Moura — Licenciado sob MIT. Código-fonte no GitHub.</small>
+  </footer>
+
   <script src="script.js"></script>
 </body>
 </html>
