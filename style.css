@@ -4,7 +4,6 @@
   --bg: #f5f6f8;
   --card: #fff;
   --border: #111;
-  --accent: #301860;
 }
 html, body { height: 100%; }
 body {
@@ -38,7 +37,7 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
   flex-wrap: wrap;
   gap: 10px;
 }
-.left { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.left { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 button {
   padding: 10px 14px;
@@ -51,7 +50,7 @@ button:hover { background: #eee; }
 button:active { transform: translateY(1px); }
 
 .hint {
-  opacity: 0.75;
+  opacity: .75;
   font-size: 14px;
   margin: 8px 0 16px;
   text-align: center;
