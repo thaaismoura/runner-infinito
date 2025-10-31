@@ -7,6 +7,9 @@
   const BStart  = document.getElementById("btnStart");
   const BPause  = document.getElementById("btnPause");
   const BMute   = document.getElementById("btnMute");
+  const BFull   = document.getElementById("btnFullscreen");
+  const BJump   = document.getElementById("btnJump");
+  const WRAP    = document.getElementById("canvasWrap");
 
   // ====== DIMENSÕES (responsivo HiDPI) ======
   let W = 800, H = 300, GY = H - 40;
@@ -75,8 +78,7 @@
   // ====== ESTADO ======
   let tObs=0, tCloud=0, tEgg=0, tMark=0, spawnInt=100;
   let running=false, paused=false, gameOver=false;
-  let score=0,                  // pontos (ovos dão +5)
-      obstaclesCleared=0;       // **conta obstáculos passados** (para nível)
+  let score=0, obstaclesCleared=0;
   let level=1, baseSpeed=3.6, speed=baseSpeed, frame=0, night=false;
   let best = Number(localStorage.getItem("runner_highscore")||0); ELbest.textContent=`🏆 High: ${best}`;
 
@@ -93,10 +95,10 @@
     score=0; obstaclesCleared=0; level=1; baseSpeed=3.6; speed=baseSpeed; frame=0; night=false;
     player.x=60; player.y=GY-player.h; player.vy=0; player.onGround=true; player.jumps=0; player.maxJumps=1;
     ELscore.textContent=`Score: ${score}`; ELlevel.textContent=`Nível: ${level} (Dia)`; BPause.textContent="Pausar (P)";
-    initAudio(); resumeMusic(); startMusic(); // música começa só ao iniciar
+    initAudio(); resumeMusic(); startMusic();
   }
 
-  // ====== INPUT ======
+  // ====== CONTROLES ======
   function doJump(){ if(!running||paused)return; if(player.onGround||player.jumps<player.maxJumps){ player.vy=-player.jump; player.onGround=false; player.jumps++; sfxJump(); } }
   document.addEventListener("keydown",e=>{
     if(e.code==="Space"){ e.preventDefault(); (gameOver||!running)?reset():doJump(); }
@@ -106,6 +108,43 @@
   BStart.addEventListener("click",()=> (gameOver||!running)?reset():null);
   BPause.addEventListener("click",togglePause);
   BMute .addEventListener("click",toggleMute);
+
+  // Botão PULAR (mobile): pointerdown para ter resposta imediata
+  const jumpHandler = (ev) => { ev.preventDefault(); (gameOver||!running)?reset():doJump(); };
+  BJump.addEventListener("pointerdown", jumpHandler);
+  BJump.addEventListener("click", e => e.preventDefault()); // evita duplo-disparo em alguns browsers
+
+  // Tela cheia (melhor em celular)
+  async function requestFull(el){
+    try {
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+      if (screen.orientation && screen.orientation.lock) {
+        try { await screen.orientation.lock('landscape'); } catch {}
+      }
+    } catch {}
+  }
+  async function exitFull(){
+    try {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+      else if (document.msExitFullscreen) await document.msExitFullscreen();
+    } catch {}
+  }
+  function toggleFull(){
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+      exitFull();
+      BFull.textContent = "Tela cheia";
+    } else {
+      requestFull(document.documentElement); // tela cheia do app inteiro
+      BFull.textContent = "Sair da tela cheia";
+    }
+  }
+  BFull.addEventListener("click", toggleFull);
+  document.addEventListener("fullscreenchange", resize);
+  document.addEventListener("webkitfullscreenchange", resize);
+  document.addEventListener("msfullscreenchange", resize);
 
   function togglePause(){
     if(!running||gameOver)return;
@@ -120,21 +159,17 @@
   }
   function spCloud(){ const s=R(.6,1.2); clouds.push({x:W+30,y:R(30,120),s,spd:R(.4,.9)}); }
   function spEgg(){ eggs.push({x:W+20,y:GY-60,w:20,h:26,got:false}); }
-  function spGroundMark(){
-    // pequenas linhas no chão para reforçar a sensação de movimento
-    groundMarks.push({x:W+R(20,80), y:GY+R(6,14), w:R(10,24), h:2, alpha:.6});
-  }
+  function spGroundMark(){ groundMarks.push({x:W+R(20,80), y:GY+R(6,14), w:R(10,24), h:2, alpha:.6}); }
 
   // ====== NÍVEIS / PROGRESSÃO ======
   function setLevel(){
-    const nl = Math.floor(obstaclesCleared / 5) + 1;   // **5 obstáculos por nível**
+    const nl = Math.floor(obstaclesCleared / 5) + 1;   // 5 obstáculos por nível
     if(nl!==level){
       level=nl; night = level%2===0;
-      baseSpeed = 3.6 + (level-1)*1.0;    // acelera mais por nível
-      speed = baseSpeed;                  // ressincroniza aceleração
+      baseSpeed = 3.6 + (level-1)*1.0;    // aceleração por nível
+      speed = baseSpeed;
       spawnInt = Math.max(52, 100 - (level-1)*6);
       ELlevel.textContent=`Nível: ${level} (${night?"Noite":"Dia"})`;
-      // festa
       for(let i=0;i<40;i++) parts.push({x:R(0,W),y:R(0,H/2),vx:R(-1,1),vy:R(-1,1),life:R(30,60),c:night?"#fff":"#ffeb3b"});
     }
   }
@@ -154,10 +189,9 @@
 
     for(const c of clouds) drawCloud(c);
 
-    // chão
     X.fillStyle="#d7b46a"; X.fillRect(0,GY,W,H-GY);
 
-    // marquinhas de chão (parallax)
+    // marquinhas do chão
     X.globalAlpha=.85;
     X.fillStyle=night?"#c4a96b":"#c09f62";
     for(const m of groundMarks) X.fillRect(m.x, m.y, m.w, m.h);
@@ -216,22 +250,32 @@
     }
     if(!running&&!gameOver){
       X.fillStyle=night?"#fff":"#111"; X.font="16px system-ui"; X.textAlign="left";
-      X.fillText("Pressione Espaço ou Clique para começar",16,28);
+      X.fillText("Pressione Espaço, Clique ou 'Pular' para começar",16,28);
     }
   }
 
   // ====== LOOP ======
+  function setLevel(){
+    const nl = Math.floor(obstaclesCleared / 5) + 1;
+    if(nl!==level){
+      level=nl; night = level%2===0;
+      baseSpeed = 3.6 + (level-1)*1.0; speed = baseSpeed;
+      spawnInt = Math.max(52, 100 - (level-1)*6);
+      ELlevel.textContent=`Nível: ${level} (${night?"Noite":"Dia"})`;
+      for(let i=0;i<40;i++) parts.push({x:R(0,W),y:R(0,H/2),vx:R(-1,1),vy:R(-1,1),life:R(30,60),c:night?"#fff":"#ffeb3b"});
+    }
+  }
+  function nearObs(){ let n=null; for(const o of obs){ if(o.x+o.w<player.x) continue; if(!n||o.x<n.x) n=o; } return n; }
+
   function update(){
     frame++;
     if(running && !paused && !gameOver){
-      // aceleração suave
-      speed = CL(speed + .003, baseSpeed, baseSpeed + 1.4);
-
-      // sensação de avanço: avestruz caminha até posição-alvo que cresce por nível
+      // aceleração suave e "andar" do avestruz (sensação de avanço)
+      speed = Math.min(baseSpeed + 1.4, speed + .003);
       const targetX = CL(W * (0.26 + (level-1)*0.02), 60, W*0.45);
       player.x = LERP(player.x, targetX, 0.025 + (level-1)*0.003);
 
-      // física player
+      // física
       player.vy += player.gravity; player.y += player.vy;
       if(player.y + player.h >= GY){
         if(!player.onGround){
@@ -240,29 +284,23 @@
         player.y = GY - player.h; player.vy=0; player.onGround=true; player.jumps=0;
       }
 
-      // pulo duplo contextual
       const n = nearObs();
       if(n){ const tall=(n.type==="cactus"&&n.h>=60)||(n.type==="barbed"&&n.h>=34); const d=n.x-(player.x+player.w); player.maxJumps=(tall&&d<Math.max(180,W*.25))?2:1; } else player.maxJumps=1;
 
-      // spawns
       if(++tObs>=spawnInt){tObs=0;spObstacle();}
       if(++tCloud>=120){tCloud=0;if(Math.random()<.9) spCloud();}
       if(++tEgg>=Math.max(300,360-level*10)){tEgg=0;if(Math.random()<.85) spEgg();}
       if(++tMark>=12){tMark=0; if(Math.random()<.7) spGroundMark();}
 
-      // mover obstáculos
       for(let i=obs.length-1;i>=0;i--){
         const o=obs[i]; o.x-=speed; if(o.type==="barbed") o.rot=(o.rot||0)+.09;
         if(hit(player,o)){
           running=false; gameOver=true; stopMusic();
           if(score>best){ best=score; localStorage.setItem("runner_highscore",best); ELbest.textContent=`🏆 High: ${best}`; }
         }
-        if(o.x+o.w<0){ obs.splice(i,1);
-          score++; obstaclesCleared++; ELscore.textContent=`Score: ${score}`; setLevel();
-        }
+        if(o.x+o.w<0){ obs.splice(i,1); score++; obstaclesCleared++; ELscore.textContent=`Score: ${score}`; setLevel(); }
       }
 
-      // ovos
       for(let i=eggs.length-1;i>=0;i--){
         const e=eggs[i]; e.x-=speed;
         if(!e.got && hit(player,e)){
@@ -272,7 +310,6 @@
         if(e.x+e.w<0 || e.got) eggs.splice(i,1);
       }
 
-      // nuvens, marquinhas e partículas
       for(let i=clouds.length-1;i>=0;i--){ const c=clouds[i]; c.x-=c.spd; if(c.x<-120) clouds.splice(i,1); }
       for(let i=groundMarks.length-1;i>=0;i--){ const m=groundMarks[i]; m.x -= speed*1.1; m.alpha -= 0.0015; if(m.x+m.w<0||m.alpha<=0) groundMarks.splice(i,1); }
       for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx; p.y+=p.vy; if(--p.life<=0) parts.splice(i,1); }
