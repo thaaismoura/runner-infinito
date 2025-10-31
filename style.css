@@ -1,9 +1,15 @@
 * { box-sizing: border-box; }
+:root {
+  --fg: #222;
+  --bg: #f5f6f8;
+  --card: #fff;
+  --border: #111;
+}
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: #f5f6f8;
-  color: #222;
+  background: var(--bg);
+  color: var(--fg);
   display: grid;
   place-items: center;
   min-height: 100vh;
@@ -13,22 +19,26 @@ h1 { margin: 16px 0; font-weight: 700; }
 canvas {
   width: 100%;
   height: auto;
-  background: #fff;
-  border: 2px solid #111;
+  background: var(--card);
+  border: 2px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,.08);
 }
 .hud {
   margin: 12px 0 4px;
   display: flex;
+  gap: 10px;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
 }
-#btnStart {
+.left { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.actions { display: flex; gap: 8px; }
+#btnStart, #btnPause {
   padding: 10px 14px;
-  border: 1px solid #111;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--card);
   border-radius: 10px;
   cursor: pointer;
 }
-.hint { opacity: .7; font-size: 14px; }
+.hint { opacity: .7; font-size: 14px; margin-bottom: 16px; }
