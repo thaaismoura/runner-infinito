@@ -11,10 +11,19 @@
     <h1>Runner Infinito</h1>
     <canvas id="game" width="800" height="300" aria-label="Runner Infinito"></canvas>
     <div class="hud">
-      <span id="score">Score: 0</span>
-      <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
+      <div class="left">
+        <span id="score">Score: 0</span>
+        <span id="level">Nível: 1 (Dia)</span>
+        <span id="best">🏆 High: 0</span>
+      </div>
+      <div class="actions">
+        <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
+        <button id="btnPause" aria-pressed="false">Pausar (P)</button>
+      </div>
     </div>
-    <p class="hint">Use a tecla <strong>ESPAÇO</strong> ou <strong>Toque</strong> para pular.</p>
+    <p class="hint">
+      Toque ou <strong>ESPAÇO</strong> para pular. O <strong>pulo duplo</strong> aparece quando o obstáculo é alto. Pressione <strong>P</strong> para pausar/retomar.
+    </p>
   </main>
   <script src="script.js"></script>
 </body>
