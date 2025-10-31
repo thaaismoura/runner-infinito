@@ -15,7 +15,7 @@ body {
   min-height: 100vh;
 }
 .wrap { width: min(920px, 95vw); }
-h1 { margin: 16px 0; font-weight: 700; }
+h1 { margin: 16px 0; font-weight: 700; text-align: center; }
 canvas {
   width: 100%;
   height: auto;
@@ -34,11 +34,12 @@ canvas {
 }
 .left { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .actions { display: flex; gap: 8px; }
-#btnStart, #btnPause {
+button {
   padding: 10px 14px;
   border: 1px solid var(--border);
   background: var(--card);
   border-radius: 10px;
   cursor: pointer;
 }
-.hint { opacity: .7; font-size: 14px; margin-bottom: 16px; }
+button:hover { background: #eee; }
+.hint { opacity: .7; font-size: 14px; margin-bottom: 16px; text-align: center; }
