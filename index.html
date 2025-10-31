@@ -11,8 +11,11 @@
   <main class="wrap">
     <h1>Runner Infinito: Avestruz 8-bit</h1>
 
-    <div class="canvas-wrap">
+    <div class="canvas-wrap" id="canvasWrap">
       <canvas id="game" width="800" height="300" aria-label="Runner Infinito"></canvas>
+
+      <!-- Botão flutuante de pulo (aparece em telas menores) -->
+      <button id="btnJump" class="jump-btn" aria-label="Pular">Pular</button>
     </div>
 
     <div class="hud">
@@ -25,12 +28,13 @@
         <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
         <button id="btnPause" aria-pressed="false">Pausar (P)</button>
         <button id="btnMute">🔊 Som</button>
+        <button id="btnFullscreen">Tela cheia</button>
       </div>
     </div>
 
     <p class="hint">
-      Toque ou <strong>ESPAÇO</strong> para pular. O <strong>pulo duplo</strong> aparece quando o obstáculo é alto.
-      Pressione <strong>P</strong> para pausar. Clique em 🔊 para mutar.
+      Toque/ESPAÇO para pular (pulo duplo em obstáculos altos). “Pausar (P)” pausa e silencia a trilha.
+      No celular, use o botão **Pular** e o **Tela cheia**.
     </p>
   </main>
 
