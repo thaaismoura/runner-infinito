@@ -9,7 +9,6 @@
   const BMute   = document.getElementById("btnMute");
   const BFull   = document.getElementById("btnFullscreen");
   const BJump   = document.getElementById("btnJump");
-  const WRAP    = document.getElementById("canvasWrap");
 
   // ====== DIMENSÕES (responsivo HiDPI) ======
   let W = 800, H = 300, GY = H - 40;
@@ -82,6 +81,29 @@
   let level=1, baseSpeed=3.6, speed=baseSpeed, frame=0, night=false;
   let best = Number(localStorage.getItem("runner_highscore")||0); ELbest.textContent=`🏆 High: ${best}`;
 
+  // ====== CONTROLES MAIS PRECISOS ======
+  // coyote + jump buffer + fila
+  const COYOTE_MS = 120;
+  const JUMP_BUFFER_MS = 120;
+  const JUMP_MIN_INTERVAL_MS = 120; // evita duplo disparo
+  let lastGroundedAt = 0;
+  let lastJumpPressedAt = -Infinity;
+  let lastJumpDoneAt = -Infinity;
+  let jumpQueued = false;
+
+  // bloqueia double-tap zoom em iOS (fallback simples)
+  let lastTapAt = 0;
+
+  function queueJump() {
+    const now = performance.now();
+    // evita duplo disparo por eventos duplicados (pointerdown + click)
+    if (now - lastJumpPressedAt < 40) return;
+    lastJumpPressedAt = now;
+    jumpQueued = true;
+    // vibração sutil (se disponível)
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
   // ====== UTILS ======
   const R=(a,b)=>Math.random()*(b-a)+a, CL=(v,a,b)=>Math.max(a,Math.min(b,v));
   const hit=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
@@ -96,25 +118,73 @@
     player.x=60; player.y=GY-player.h; player.vy=0; player.onGround=true; player.jumps=0; player.maxJumps=1;
     ELscore.textContent=`Score: ${score}`; ELlevel.textContent=`Nível: ${level} (Dia)`; BPause.textContent="Pausar (P)";
     initAudio(); resumeMusic(); startMusic();
+    lastGroundedAt = performance.now();
+    lastJumpPressedAt = -Infinity; lastJumpDoneAt = -Infinity; jumpQueued = false;
   }
 
-  // ====== CONTROLES ======
-  function doJump(){ if(!running||paused)return; if(player.onGround||player.jumps<player.maxJumps){ player.vy=-player.jump; player.onGround=false; player.jumps++; sfxJump(); } }
+  // ====== INPUT ======
+  function tryConsumeJump() {
+    const now = performance.now();
+    // intervalo mínimo entre pulos (anti "duplo")
+    if (now - lastJumpDoneAt < JUMP_MIN_INTERVAL_MS) return false;
+
+    const onGroundNow = player.onGround;
+    const coyoteOk = (now - lastGroundedAt) <= COYOTE_MS;
+    const bufferOk = (now - lastJumpPressedAt) <= JUMP_BUFFER_MS;
+
+    // pode pular se:
+    // - está no chão (ou dentro do coyote) E houve input recente (buffer)
+    // - OU ainda tem pulo extra (duplo)
+    if ((onGroundNow || coyoteOk) && bufferOk) {
+      doJumpImpulse();
+      return true;
+    }
+    if (!onGroundNow && player.jumps < player.maxJumps && bufferOk) {
+      doJumpImpulse();
+      return true;
+    }
+    return false;
+  }
+
+  function doJumpImpulse(){
+    player.vy = -player.jump;
+    player.onGround = false;
+    player.jumps++;
+    lastJumpDoneAt = performance.now();
+    sfxJump();
+  }
+
+  // teclado
   document.addEventListener("keydown",e=>{
-    if(e.code==="Space"){ e.preventDefault(); (gameOver||!running)?reset():doJump(); }
+    if(e.code==="Space"){ e.preventDefault(); if(gameOver||!running) reset(); else queueJump(); }
     else if(e.code==="KeyP"){ togglePause(); }
-  });
-  C.addEventListener("pointerdown",()=> (gameOver||!running)?reset():doJump());
+  }, {passive:false});
+
+  // canvas inteiro vira botão de pulo (pointerdown para latência mínima)
+  const canvasPointerDown = (ev) => {
+    // evita double-tap zoom no iOS
+    const now = performance.now();
+    if (now - lastTapAt < 250) { ev.preventDefault?.(); return; }
+    lastTapAt = now;
+
+    ev.preventDefault?.();
+    (gameOver||!running) ? reset() : queueJump();
+  };
+  C.addEventListener("pointerdown", canvasPointerDown, {passive:false});
+
+  // botão "Pular"
+  const jumpBtnHandler = (ev) => { ev.preventDefault?.(); (gameOver||!running)?reset():queueJump(); };
+  if (BJump) {
+    BJump.addEventListener("pointerdown", jumpBtnHandler, {passive:false});
+    BJump.addEventListener("click", e => e.preventDefault()); // evita segundo disparo em alguns browsers
+  }
+
+  // UI básica
   BStart.addEventListener("click",()=> (gameOver||!running)?reset():null);
   BPause.addEventListener("click",togglePause);
   BMute .addEventListener("click",toggleMute);
 
-  // Botão PULAR (mobile): pointerdown para ter resposta imediata
-  const jumpHandler = (ev) => { ev.preventDefault(); (gameOver||!running)?reset():doJump(); };
-  BJump.addEventListener("pointerdown", jumpHandler);
-  BJump.addEventListener("click", e => e.preventDefault()); // evita duplo-disparo em alguns browsers
-
-  // Tela cheia (melhor em celular)
+  // Tela cheia
   async function requestFull(el){
     try {
       if (el.requestFullscreen) await el.requestFullscreen();
@@ -134,14 +204,12 @@
   }
   function toggleFull(){
     if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
-      exitFull();
-      BFull.textContent = "Tela cheia";
+      exitFull(); BFull.textContent = "Tela cheia";
     } else {
-      requestFull(document.documentElement); // tela cheia do app inteiro
-      BFull.textContent = "Sair da tela cheia";
+      requestFull(document.documentElement); BFull.textContent = "Sair da tela cheia";
     }
   }
-  BFull.addEventListener("click", toggleFull);
+  BFull && BFull.addEventListener("click", toggleFull);
   document.addEventListener("fullscreenchange", resize);
   document.addEventListener("webkitfullscreenchange", resize);
   document.addEventListener("msfullscreenchange", resize);
@@ -270,23 +338,41 @@
   function update(){
     frame++;
     if(running && !paused && !gameOver){
-      // aceleração suave e "andar" do avestruz (sensação de avanço)
+      // aceleração suave e “andar” do avestruz
       speed = Math.min(baseSpeed + 1.4, speed + .003);
       const targetX = CL(W * (0.26 + (level-1)*0.02), 60, W*0.45);
       player.x = LERP(player.x, targetX, 0.025 + (level-1)*0.003);
 
       // física
       player.vy += player.gravity; player.y += player.vy;
+
+      // aterrissagem
       if(player.y + player.h >= GY){
         if(!player.onGround){
           for(let i=0;i<10;i++) parts.push({x:player.x+player.w/2,y:GY-2,vx:R(-2,2),vy:R(-3,-1),life:R(20,40),c:"#d7b46a"});
         }
         player.y = GY - player.h; player.vy=0; player.onGround=true; player.jumps=0;
+        lastGroundedAt = performance.now();
+      } else {
+        // se estava no chão e saiu agora, registra tempo
+        if (player.onGround) lastGroundedAt = performance.now();
+        player.onGround = false;
       }
 
+      // processa fila de pulo (jump buffer + coyote)
+      if (jumpQueued) {
+        if (tryConsumeJump()) jumpQueued = false;
+        else {
+          // mantém na fila por alguns ms (buffer)
+          if (performance.now() - lastJumpPressedAt > JUMP_BUFFER_MS) jumpQueued = false;
+        }
+      }
+
+      // pulo duplo contextual
       const n = nearObs();
       if(n){ const tall=(n.type==="cactus"&&n.h>=60)||(n.type==="barbed"&&n.h>=34); const d=n.x-(player.x+player.w); player.maxJumps=(tall&&d<Math.max(180,W*.25))?2:1; } else player.maxJumps=1;
 
+      // spawns
       if(++tObs>=spawnInt){tObs=0;spObstacle();}
       if(++tCloud>=120){tCloud=0;if(Math.random()<.9) spCloud();}
       if(++tEgg>=Math.max(300,360-level*10)){tEgg=0;if(Math.random()<.85) spEgg();}
@@ -324,6 +410,65 @@
     drawOverlays();
 
     requestAnimationFrame(update);
+  }
+
+  // wrappers de desenho (mesmo de antes)
+  function drawEgg(e){ X.fillStyle="#fff176"; X.beginPath(); X.ellipse(e.x+e.w/2,e.y+e.h/2,10,13,0,0,Math.PI*2); X.fill(); }
+  function drawParticles(){ for(const p of parts){ X.fillStyle=p.c; X.fillRect(p.x,p.y,2,2); } }
+  function drawOverlays(){
+    if(paused&&running&&!gameOver){
+      X.fillStyle="rgba(0,0,0,.4)"; X.fillRect(0,0,W,H);
+      X.fillStyle="#fff"; X.font="bold 28px system-ui"; X.textAlign="center"; X.fillText("PAUSADO",W/2,H/2-8);
+      X.font="16px system-ui"; X.fillText("Pressione P para retomar",W/2,H/2+24);
+    }
+    if(gameOver){
+      X.fillStyle="rgba(0,0,0,.6)"; X.fillRect(0,0,W,H);
+      X.fillStyle="#fff"; X.font="bold 28px system-ui"; X.textAlign="center"; X.fillText("Game Over",W/2,H/2-8);
+      X.font="16px system-ui"; X.fillText("Espaço/Toque para Reiniciar",W/2,H/2+24);
+    }
+    if(!running&&!gameOver){
+      X.fillStyle=night?"#fff":"#111"; X.font="16px system-ui"; X.textAlign="left";
+      X.fillText("Pressione Espaço, Clique ou 'Pular' para começar",16,28);
+    }
+  }
+  function drawBG(){
+    const gd=X.createLinearGradient(0,0,0,H); gd.addColorStop(0,"#87CEEB"); gd.addColorStop(1,"#fceabb");
+    const gn=X.createLinearGradient(0,0,0,H); gn.addColorStop(0,"#20053d"); gn.addColorStop(1,"#301860");
+    X.fillStyle=night?gn:gd; X.fillRect(0,0,W,H);
+    if(night){
+      X.fillStyle="#fff";
+      for(let i=0;i<40;i++){ const x=(i*37+(frame%37)*3)%W, y=(i*11)%Math.max(80,H*.35); X.fillRect(x,y,1,1); }
+      X.beginPath(); X.arc(W-80,60,16,0,Math.PI*2); X.fillStyle="#f5f3ce"; X.fill();
+    }
+    for(const c of clouds) drawCloud(c);
+    X.fillStyle="#d7b46a"; X.fillRect(0,GY,W,H-GY);
+    X.globalAlpha=.85; X.fillStyle=night?"#c4a96b":"#c09f62";
+    for(const m of groundMarks) X.fillRect(m.x, m.y, m.w, m.h);
+    X.globalAlpha=1;
+  }
+  function drawCloud(c){
+    X.save(); X.translate(c.x,c.y); X.scale(c.s,c.s);
+    X.fillStyle="rgba(255,255,255,.85)";
+    X.beginPath(); X.arc(0,0,16,0,Math.PI*2); X.arc(16,-6,20,0,Math.PI*2); X.arc(34,0,16,0,Math.PI*2); X.fill();
+    X.restore();
+  }
+  function drawOstrich(){
+    const x=player.x,y=player.y,w=player.w,h=player.h;
+    player.leg+=player.onGround?speed*.20:.06; player.wing+=.3; player.neck+=.1;
+    const wing=Math.sin(player.wing)*6, neck=Math.sin(player.neck)*2;
+    X.save(); X.translate(x,y); X.fillStyle=night?"#eee":"#444";
+    X.beginPath(); X.ellipse(w*.42,h*.55,w*.32,h*.28,0,0,Math.PI*2); X.fill();
+    X.save(); X.translate(w*.55+neck,h*.10); X.fillRect(0,0,w*.08,h*.40); X.restore();
+    X.beginPath(); X.arc(w*.63+neck,h*.10,w*.10,0,Math.PI*2); X.fill();
+    X.fillRect(w*.70+neck,h*.10-3,w*.16,6);
+    X.fillStyle=night?"#0c1230":"#fff"; X.fillRect(w*.61+neck,h*.06,3,3);
+    X.fillStyle=night?"#0c1230":"#111"; X.fillRect(w*.62+neck,h*.07,1.5,1.5);
+    X.fillStyle=night?"#eee":"#444"; X.save(); X.translate(w*.30,h*.40); X.rotate(wing*Math.PI/180);
+    X.beginPath(); X.ellipse(0,0,w*.30,h*.15,0,0,Math.PI*2); X.fill(); X.restore();
+    const a=Math.sin(player.leg)*6;
+    X.save(); X.translate(w*.38,h*.70); X.rotate(a*Math.PI/180); X.fillRect(-2,0,4,h*.30); X.restore();
+    X.save(); X.translate(w*.48,h*.70); X.rotate(-a*Math.PI/180); X.fillRect(-2,0,4,h*.30); X.restore();
+    X.restore();
   }
 
   // ====== START ======
