@@ -2,48 +2,59 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Runner Infinito: Avestruz 8-bit</title>
-  <meta name="theme-color" content="#301860" />
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial,sans-serif;background:#f2f2f2;margin:0;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px}
+    h1{margin:0 0 8px 0}
+    #wrap{background:#fff;border:4px solid #111;border-radius:10px;padding:12px}
+    #game{display:block;background:#fff}
+    #hud{display:flex;gap:16px;justify-content:center;margin-top:8px;font-weight:600}
+    #controls{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+    button{padding:10px 14px;border:2px solid #111;border-radius:10px;background:#fff;cursor:pointer}
+    button:active{transform:translateY(1px)}
+    .muted{opacity:.7}
+    small{opacity:.8}
+  </style>
 </head>
 <body>
-  <main class="wrap">
-    <h1>Runner Infinito: Avestruz 8-bit</h1>
+  <h1>Runner Infinito: Avestruz 8-bit</h1>
 
-    <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="game" width="800" height="400" aria-label="Runner Infinito"></canvas>
+  <div id="wrap">
+    <canvas id="game" width="960" height="480"></canvas>
+
+    <div id="hud">
+      <span id="score">Score: 0</span>
+      <span id="level">Nível: 1 (Dia)</span>
+      <span id="best">🏆 High: 0</span>
     </div>
 
-    <!-- Botão Pular abaixo do jogo -->
-    <div class="mobile-controls">
-      <button id="btnJump" class="jump-btn" aria-label="Pular">Pular</button>
+    <div id="controls">
+      <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
+      <button id="btnPause">Pausar (P)</button>
+      <button id="btnMute">Som</button>
+      <button id="btnFS">Tela cheia</button>
+      <!-- opcional: botão de pulo para mobile -->
+      <button id="btnJump" class="muted">Pular (toque)</button>
     </div>
 
-    <div class="hud">
-      <div class="left">
-        <span id="score">Score: 0</span>
-        <span id="level">Nível: 1 (Dia)</span>
-        <span id="best">🏆 High: 0</span>
-      </div>
-      <div class="actions">
-        <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
-        <button id="btnPause">Pausar (P)</button>
-        <button id="btnMute">🔊 Som</button>
-        <button id="btnFullscreen">Tela cheia</button>
-      </div>
+    <div style="margin-top:8px;text-align:center">
+      <small>Toque/ESPAÇO para pular (pulo duplo em obstáculos altos). “Pausar (P)” pausa e silencia a trilha. No celular, use o botão <b>Pular</b> e <b>Tela cheia</b>.</small>
     </div>
+  </div>
 
-    <p class="hint">
-      Toque/ESPAÇO para pular (pulo duplo em obstáculos altos). “Pausar (P)” pausa e silencia a trilha.
-      No celular, use o botão **Pular** e **Tela cheia**.
-    </p>
-  </main>
+  <!-- Carregue o script COM defer para garantir que o DOM exista -->
+  <script defer src="script.js"></script>
 
-  <footer class="site-footer">
-    <small>© 2025 Thaís Moura — Licenciado sob MIT. Código-fonte no GitHub.</small>
-  </footer>
-
-  <script src="script.js"></script>
+  <!-- Diagnóstico rápido: mostra erros JS na própria página -->
+  <script>
+    window.addEventListener('error', e => {
+      const box = document.createElement('pre');
+      box.style.cssText = 'white-space:pre-wrap;background:#fee;border:2px solid #900;padding:8px;margin-top:12px;max-width:960px;';
+      box.textContent = 'Erro: ' + e.message + '\n' + e.filename + ':' + e.lineno + ':' + e.colno;
+      document.body.appendChild(box);
+    });
+    console.log('index carregado');
+  </script>
 </body>
 </html>
