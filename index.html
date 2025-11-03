@@ -1,36 +1,49 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Runner Infinito: Avestruz 8-bit</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="theme-color" content="#301860" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Runner Infinito: Avestruz 8-bit</h1>
+  <main class="wrap">
+    <h1>Runner Infinito: Avestruz 8-bit</h1>
 
-  <div id="wrap">
-    <canvas id="game" width="960" height="480"></canvas>
-
-    <div id="hud">
-      <span id="score">Score: 0</span>
-      <span id="level">Nível: 1 (Dia)</span>
-      <span id="best">🏆 High: 0</span>
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="game" width="800" height="400" aria-label="Runner Infinito"></canvas>
     </div>
 
-    <div id="controls">
-      <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
-      <button id="btnPause">Pausar (P)</button>
-      <button id="btnMute">Som</button>
-      <button id="btnFS">Tela cheia</button>
-      <button id="btnJump" class="muted">Pular (toque)</button>
+    <!-- Botão Pular abaixo do jogo -->
+    <div class="mobile-controls">
+      <button id="btnJump" class="jump-btn" aria-label="Pular">Pular</button>
     </div>
 
-    <div class="hint">
-      Toque/ESPAÇO para pular (pulo duplo em obstáculos altos). “Pausar (P)” pausa e silencia a trilha. No celular, use o botão <b>Pular</b> e <b>Tela cheia</b>.
+    <div class="hud">
+      <div class="left">
+        <span id="score">Score: 0</span>
+        <span id="level">Nível: 1 (Dia)</span>
+        <span id="best">🏆 High: 0</span>
+      </div>
+      <div class="actions">
+        <button id="btnStart">Iniciar / Reiniciar (Espaço)</button>
+        <button id="btnPause">Pausar (P)</button>
+        <button id="btnMute">🔊 Som</button>
+        <button id="btnFullscreen">Tela cheia</button>
+      </div>
     </div>
-  </div>
 
-  <script defer src="script.js"></script>
+    <p class="hint">
+      Toque/ESPAÇO para pular (pulo duplo em obstáculos altos). “Pausar (P)” pausa e silencia a trilha.
+      No celular, use o botão **Pular** e **Tela cheia**.
+    </p>
+  </main>
+
+  <footer class="site-footer">
+    <small>© 2025 Thaís Moura — Licenciado sob MIT. Código-fonte no GitHub.</small>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>
