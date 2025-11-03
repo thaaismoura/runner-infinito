@@ -101,4 +101,8 @@ button:active { transform: translateY(1px); }
   .jump-btn { display: inline-flex; align-items: center; justify-content: center; }
   .canvas-wrap { aspect-ratio: 16 / 9; } /* mais alto no celular */
   h1 { font-size: 18px; }
+#bottom-controls {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
