@@ -11,7 +11,7 @@
   const BJump   = document.getElementById("btnJump");
 
   // ====== DIMENSÕES (responsivo HiDPI) ======
-  let W = 800, H = 300, GY = H - 40;
+  let W = 800, H = 300, GY = H - 28;
   function resize() {
     const wrap = C.parentElement;
     const w = wrap.clientWidth, h = wrap.clientHeight;
@@ -19,7 +19,7 @@
     C.width = Math.floor(w * dpr); C.height = Math.floor(h * dpr);
     C.style.width = w + "px"; C.style.height = h + "px";
     X.setTransform(dpr, 0, 0, dpr, 0, 0);
-    W = w; H = h; GY = H - 40;
+    W = w; H = h; GY = H - 28;
     if (player && player.y + player.h > GY) { player.y = GY - player.h; player.vy = 0; player.onGround = true; }
   }
   window.addEventListener("resize", resize);
