@@ -7,7 +7,7 @@
   const BStart  = document.getElementById("btnStart");
   const BPause  = document.getElementById("btnPause");
   const BMute   = document.getElementById("btnMute");
-  const BFull   = document.getElementById("btnFullscreen");
+  const BFull   = document.getElementById("btnFullscreen"); // mantenha o id no HTML igual a este
   const BJump   = document.getElementById("btnJump");
 
   // ====== DIMENSÕES (responsivo HiDPI) ======
@@ -20,7 +20,13 @@
     C.style.width = w + "px"; C.style.height = h + "px";
     X.setTransform(dpr, 0, 0, dpr, 0, 0);
     W = w; H = h; GY = H - 28;
-    if (player && player.y + player.h > GY) { player.y = GY - player.h; player.vy = 0; player.onGround = true; }
+
+    // >>> cola o player no chão após redimensionar (não deixa flutuar nem afundar)
+    if (player) {
+      player.y = GY - player.h;
+      player.vy = 0;
+      player.onGround = true;
+    }
   }
   window.addEventListener("resize", resize);
   window.addEventListener("orientationchange", resize);
@@ -70,8 +76,8 @@
   }
 
   // ====== ENTIDADES ======
- const player = { x:60, y:GY-42, w:46, h:42, vy:0, gravity:.9, jump:15.4,
-  onGround:true, jumps:0, maxJumps:1, leg:0, wing:0, neck:0 };
+  const player = { x:60, y:GY-42, w:46, h:42, vy:0, gravity:.9, jump:15.4,
+    onGround:true, jumps:0, maxJumps:1, leg:0, wing:0, neck:0 };
   const obs = [], clouds = [], eggs = [], parts = [], groundMarks = [];
 
   // ====== ESTADO ======
@@ -82,25 +88,20 @@
   let best = Number(localStorage.getItem("runner_highscore")||0); ELbest.textContent=`🏆 High: ${best}`;
 
   // ====== CONTROLES MAIS PRECISOS ======
-  // coyote + jump buffer + fila
   const COYOTE_MS = 120;
   const JUMP_BUFFER_MS = 120;
-  const JUMP_MIN_INTERVAL_MS = 120; // evita duplo disparo
+  const JUMP_MIN_INTERVAL_MS = 120;
   let lastGroundedAt = 0;
   let lastJumpPressedAt = -Infinity;
   let lastJumpDoneAt = -Infinity;
   let jumpQueued = false;
 
-  // bloqueia double-tap zoom em iOS (fallback simples)
   let lastTapAt = 0;
-
   function queueJump() {
     const now = performance.now();
-    // evita duplo disparo por eventos duplicados (pointerdown + click)
     if (now - lastJumpPressedAt < 40) return;
     lastJumpPressedAt = now;
     jumpQueued = true;
-    // vibração sutil (se disponível)
     if (navigator.vibrate) navigator.vibrate(8);
   }
 
@@ -125,27 +126,16 @@
   // ====== INPUT ======
   function tryConsumeJump() {
     const now = performance.now();
-    // intervalo mínimo entre pulos (anti "duplo")
     if (now - lastJumpDoneAt < JUMP_MIN_INTERVAL_MS) return false;
 
     const onGroundNow = player.onGround;
     const coyoteOk = (now - lastGroundedAt) <= COYOTE_MS;
     const bufferOk = (now - lastJumpPressedAt) <= JUMP_BUFFER_MS;
 
-    // pode pular se:
-    // - está no chão (ou dentro do coyote) E houve input recente (buffer)
-    // - OU ainda tem pulo extra (duplo)
-    if ((onGroundNow || coyoteOk) && bufferOk) {
-      doJumpImpulse();
-      return true;
-    }
-    if (!onGroundNow && player.jumps < player.maxJumps && bufferOk) {
-      doJumpImpulse();
-      return true;
-    }
+    if ((onGroundNow || coyoteOk) && bufferOk) { doJumpImpulse(); return true; }
+    if (!onGroundNow && player.jumps < player.maxJumps && bufferOk) { doJumpImpulse(); return true; }
     return false;
   }
-
   function doJumpImpulse(){
     player.vy = -player.jump;
     player.onGround = false;
@@ -154,32 +144,26 @@
     sfxJump();
   }
 
-  // teclado
   document.addEventListener("keydown",e=>{
     if(e.code==="Space"){ e.preventDefault(); if(gameOver||!running) reset(); else queueJump(); }
     else if(e.code==="KeyP"){ togglePause(); }
   }, {passive:false});
 
-  // canvas inteiro vira botão de pulo (pointerdown para latência mínima)
   const canvasPointerDown = (ev) => {
-    // evita double-tap zoom no iOS
     const now = performance.now();
     if (now - lastTapAt < 250) { ev.preventDefault?.(); return; }
     lastTapAt = now;
-
     ev.preventDefault?.();
     (gameOver||!running) ? reset() : queueJump();
   };
   C.addEventListener("pointerdown", canvasPointerDown, {passive:false});
 
-  // botão "Pular"
   const jumpBtnHandler = (ev) => { ev.preventDefault?.(); (gameOver||!running)?reset():queueJump(); };
   if (BJump) {
     BJump.addEventListener("pointerdown", jumpBtnHandler, {passive:false});
-    BJump.addEventListener("click", e => e.preventDefault()); // evita segundo disparo em alguns browsers
+    BJump.addEventListener("click", e => e.preventDefault());
   }
 
-  // UI básica
   BStart.addEventListener("click",()=> (gameOver||!running)?reset():null);
   BPause.addEventListener("click",togglePause);
   BMute .addEventListener("click",toggleMute);
@@ -204,12 +188,12 @@
   }
   function toggleFull(){
     if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
-      exitFull(); BFull.textContent = "Tela cheia";
+      exitFull(); if (BFull) BFull.textContent = "Tela cheia";
     } else {
-      requestFull(document.documentElement); BFull.textContent = "Sair da tela cheia";
+      requestFull(document.documentElement); if (BFull) BFull.textContent = "Sair da tela cheia";
     }
   }
-  BFull && BFull.addEventListener("click", toggleFull);
+  if (BFull) BFull.addEventListener("click", toggleFull);
   document.addEventListener("fullscreenchange", resize);
   document.addEventListener("webkitfullscreenchange", resize);
   document.addEventListener("msfullscreenchange", resize);
@@ -343,8 +327,14 @@
       const targetX = CL(W * (0.26 + (level-1)*0.02), 60, W*0.45);
       player.x = LERP(player.x, targetX, 0.025 + (level-1)*0.003);
 
+      // >>> PULO MAIS RÁPIDO: processa imediatamente ANTES da física
+      if (jumpQueued) {
+        if (tryConsumeJump()) jumpQueued = false;
+      }
+
       // física
-      player.vy += player.gravity; player.y += player.vy;
+      player.vy += player.gravity; 
+      player.y  += player.vy;
 
       // aterrissagem
       if(player.y + player.h >= GY){
@@ -354,7 +344,6 @@
         player.y = GY - player.h; player.vy=0; player.onGround=true; player.jumps=0;
         lastGroundedAt = performance.now();
       } else {
-        // se estava no chão e saiu agora, registra tempo
         if (player.onGround) lastGroundedAt = performance.now();
         player.onGround = false;
       }
@@ -362,15 +351,16 @@
       // processa fila de pulo (jump buffer + coyote)
       if (jumpQueued) {
         if (tryConsumeJump()) jumpQueued = false;
-        else {
-          // mantém na fila por alguns ms (buffer)
-          if (performance.now() - lastJumpPressedAt > JUMP_BUFFER_MS) jumpQueued = false;
-        }
+        else if (performance.now() - lastJumpPressedAt > JUMP_BUFFER_MS) jumpQueued = false;
       }
 
       // pulo duplo contextual
       const n = nearObs();
-      if(n){ const tall=(n.type==="cactus"&&n.h>=60)||(n.type==="barbed"&&n.h>=34); const d=n.x-(player.x+player.w); player.maxJumps=(tall&&d<Math.max(180,W*.25))?2:1; } else player.maxJumps=1;
+      if(n){ 
+        const tall=(n.type==="cactus"&&n.h>=60)||(n.type==="barbed"&&n.h>=34); 
+        const d=n.x-(player.x+player.w); 
+        player.maxJumps=(tall&&d<Math.max(180,W*.25))?2:1; 
+      } else player.maxJumps=1;
 
       // spawns
       if(++tObs>=spawnInt){tObs=0;spObstacle();}
@@ -412,7 +402,7 @@
     requestAnimationFrame(update);
   }
 
-  // wrappers de desenho (mesmo de antes)
+  // wrappers de desenho
   function drawEgg(e){ X.fillStyle="#fff176"; X.beginPath(); X.ellipse(e.x+e.w/2,e.y+e.h/2,10,13,0,0,Math.PI*2); X.fill(); }
   function drawParticles(){ for(const p of parts){ X.fillStyle=p.c; X.fillRect(p.x,p.y,2,2); } }
   function drawOverlays(){
@@ -474,19 +464,4 @@
   // ====== START ======
   function initialDraw(){ drawBG(); drawOverlays(); }
   resize(); initialDraw(); requestAnimationFrame(update);
-
-  // aceleração suave e “andar” do avestruz
-speed = Math.min(baseSpeed + 1.4, speed + .003);
-const targetX = CL(W * (0.26 + (level-1)*0.02), 60, W*0.45);
-player.x = LERP(player.x, targetX, 0.025 + (level-1)*0.003);
-
-// processa pulo imediatamente para reduzir latência de input (antes da física)
-if (jumpQueued) {
-  if (tryConsumeJump()) jumpQueued = false;
-}
-
-// física
-player.vy += player.gravity; 
-player.y  += player.vy;
-
 })();
